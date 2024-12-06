@@ -1,6 +1,7 @@
 package embedstore
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,7 +13,7 @@ import (
 func TestPager(t *testing.T) {
 	filename := filepath.Join(t.TempDir(), "test_data")
 
-	t.Run("create pager", func(t *testing.T) {
+	t.Run("create and write", func(t *testing.T) {
 		pgr, err := newPager(filename, os.Getpagesize())
 		if err != nil {
 			t.Fatalf(
@@ -39,7 +40,7 @@ func TestPager(t *testing.T) {
 		}
 	})
 
-	t.Run("recovery pager", func(t *testing.T) {
+	t.Run("recovery and read", func(t *testing.T) {
 		pgr, err := newPager(filename, os.Getpagesize())
 		if err != nil {
 			t.Fatalf(
@@ -59,12 +60,13 @@ func TestPager(t *testing.T) {
 			}
 
 			expectedPgData := fmt.Sprintf("data%d", i+1)
-			actualPgData := string(pg.data)
+			actualPgData := string(bytes.TrimRight(pg.data, "\x00"))
 
-			if expectedPgData == actualPgData {
+			if expectedPgData != actualPgData {
 				t.Fatalf(
-					"Failed to compare page data: expected %s, actual %s",
-					expectedPgData, actualPgData,
+					"Failed to compare page data: expected %s(%d), actual %s(%d)",
+					expectedPgData, len(expectedPgData),
+					actualPgData, len(actualPgData),
 				)
 			}
 		}

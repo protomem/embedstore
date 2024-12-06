@@ -47,14 +47,14 @@ type pager struct {
 }
 
 func newPager(path string, psize int) (*pager, error) {
-	exists, err := isFileExists(path)
+	exists, err := isFsEntryExists(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("pager/new: %w", err)
 	}
 
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, _defaultFilePerm)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("pager/new: open/create file: %w", err)
 	}
 
 	pgr := &pager{
@@ -70,19 +70,19 @@ func newPager(path string, psize int) (*pager, error) {
 	if exists {
 		if err := pgr.recovery(); err != nil {
 			_ = pgr.close()
-			return nil, err
+			return nil, fmt.Errorf("pager/new: %w", err)
 		}
 	} else {
 		if err := pgr.flush(); err != nil {
 			_ = pgr.close()
-			return nil, err
+			return nil, fmt.Errorf("pager/new: %w", err)
 		}
 	}
 
 	return pgr, nil
 }
 
-func isFileExists(path string) (bool, error) {
+func isFsEntryExists(path string) (bool, error) {
 	if _, err := os.Stat(path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
@@ -125,18 +125,21 @@ func (pgr *pager) write(pg *page) error {
 	off := int64(pg.num) * int64(pgr.psize)
 
 	if _, err := pgr.f.WriteAt(pg.data, off); err != nil {
-		return err
+		return fmt.Errorf(
+			"pager/write(num=%d,size=%d): %w",
+			pg.num, len(pg.data), err,
+		)
 	}
 
 	return nil
 }
 
 func (pgr *pager) read(num pagenum) (*page, error) {
-	pg := pgr.create()
+	pg := pgr.createWithNum(num)
 	off := int64(num) * int64(pgr.psize)
 
 	if _, err := pgr.f.ReadAt(pg.data, off); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("pager/read(num=%d): %w", pg.num, err)
 	}
 
 	return pg, nil
@@ -187,8 +190,11 @@ func (pgr *pager) recovery() error {
 }
 
 func (pgr *pager) close() error {
-	err := pgr.f.Close()
-	return err
+	if err := pgr.f.Close(); err != nil {
+		return fmt.Errorf("pager/close: %w", err)
+	}
+
+	return nil
 }
 
 type metainfo struct {
@@ -233,8 +239,9 @@ func newFreelist() *freelist {
 
 func (flist *freelist) next() pagenum {
 	if len(flist.released) == 0 {
+		curr := flist.max
 		flist.max += 1
-		return flist.max
+		return curr
 	}
 
 	num := flist.released[len(flist.released)-1]
