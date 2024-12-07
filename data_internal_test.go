@@ -24,7 +24,7 @@ func TestPager(t *testing.T) {
 		defer pgr.close()
 
 		for i := 0; i < 10; i++ {
-			pg := pgr.createNext()
+			pg := pgr.alloc().withNum(pgr.flist.next())
 			pg.write([]byte(fmt.Sprintf("data%d", i+1)))
 
 			if err := pgr.write(pg); err != nil {

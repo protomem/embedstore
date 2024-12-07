@@ -32,6 +32,14 @@ func newPage(num pagenum, size int) *page {
 	}
 }
 
+func (pg *page) withNum(num pagenum) *page {
+	pg.num = num
+	return &page{
+		num:  num,
+		data: pg.data,
+	}
+}
+
 func (pg *page) write(b []byte) {
 	copy(pg.data, b)
 }
@@ -92,33 +100,8 @@ func isFsEntryExists(path string) (bool, error) {
 	return true, nil
 }
 
-func (pgr *pager) alloc(num int) []*page {
-	if num == 0 {
-		return nil
-	}
-
-	pgs := make([]*page, num)
-	for i := range pgs {
-		pgs[i] = newPage(0, pgr.psize)
-	}
-
-	return pgs
-}
-
-func (pgr *pager) createWithNum(num pagenum) *page {
-	pg := pgr.alloc(1)[0]
-	pg.num = num
-
-	return pg
-}
-
-func (pgr *pager) create() *page {
-	return pgr.createWithNum(0)
-}
-
-func (pgr *pager) createNext() *page {
-	num := pgr.flist.next()
-	return pgr.createWithNum(num)
+func (pgr *pager) alloc() *page {
+	return newPage(0, pgr.psize)
 }
 
 func (pgr *pager) write(pg *page) error {
@@ -135,7 +118,7 @@ func (pgr *pager) write(pg *page) error {
 }
 
 func (pgr *pager) read(num pagenum) (*page, error) {
-	pg := pgr.createWithNum(num)
+	pg := pgr.alloc().withNum(num)
 	off := int64(num) * int64(pgr.psize)
 
 	if _, err := pgr.f.ReadAt(pg.data, off); err != nil {
@@ -146,7 +129,7 @@ func (pgr *pager) read(num pagenum) (*page, error) {
 }
 
 func (pgr *pager) flush() error {
-	metapg := pgr.createWithNum(_defaultMetaPage)
+	metapg := pgr.alloc().withNum(_defaultMetaPage)
 	metab := pgr.meta.serialize()
 
 	copy(metapg.data, metab)
@@ -155,7 +138,7 @@ func (pgr *pager) flush() error {
 		return fmt.Errorf("pager: flush metainfo: %w", err)
 	}
 
-	flistpg := pgr.createWithNum(pgr.meta.flist)
+	flistpg := pgr.alloc().withNum(pgr.meta.flist)
 	flistb := pgr.flist.serialize()
 
 	copy(flistpg.data, flistb)
