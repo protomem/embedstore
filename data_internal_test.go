@@ -114,16 +114,10 @@ func TestFreelist_Serialization(t *testing.T) {
 		)
 	}
 
-	if expectedFlist.max != actualFlist.max {
+	if !expectedFlist.isEqual(actualFlist) {
 		t.Fatalf(
-			"Failed to compare freelist max page: expected %d, actual %d",
-			expectedFlist.max, actualFlist.max,
-		)
-	}
-	if len(expectedFlist.released) != len(actualFlist.released) {
-		t.Fatalf(
-			"Failed to compare freelist number released pages: expected %d, actual %d",
-			len(expectedFlist.released), len(actualFlist.released),
+			"Failed to check for equals freelists: expected %d, actual %d",
+			expectedFlist, actualFlist,
 		)
 	}
 }

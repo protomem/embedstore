@@ -208,6 +208,10 @@ func (meta *metainfo) deserialize(b []byte) error {
 	return nil
 }
 
+func (meta *metainfo) isEqual(other *metainfo) bool {
+	return meta.flist == other.flist
+}
+
 type freelist struct {
 	max      pagenum
 	released []pagenum
@@ -271,4 +275,25 @@ func (flist *freelist) deserialize(b []byte) error {
 	}
 
 	return nil
+}
+
+func (flist *freelist) isEqual(other *freelist) bool {
+	if flist.max != other.max || len(flist.released) != len(other.released) {
+		return false
+	}
+
+	for i := range flist.released {
+		exists := false
+		for j := range other.released {
+			if flist.released[i] == other.released[j] {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			return false
+		}
+	}
+
+	return true
 }
